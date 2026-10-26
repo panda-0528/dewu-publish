@@ -1,0 +1,111 @@
+[
+  {
+    "type": "function",
+    "function": {
+      "name": "dewu_env_check",
+      "description": "检查并初始化得物发布所需的模拟器环境。",
+      "parameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "serial": {
+            "type": "string",
+            "default": "emulator-5554"
+          }
+        }
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "dewu_scan",
+      "description": "扫描本地素材目录，返回可发布的相册组列表。",
+      "parameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["src"],
+        "properties": {
+          "src": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "dewu_import",
+      "description": "将本地素材目录推送到模拟器相册并刷新媒体库。",
+      "parameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["src"],
+        "properties": {
+          "src": {
+            "type": "string",
+            "minLength": 1
+          },
+          "serial": {
+            "type": "string",
+            "default": "emulator-5554"
+          }
+        }
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "dewu_validate",
+      "description": "校验 posts.json 是否符合发布规则。",
+      "parameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["config"],
+        "properties": {
+          "config": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "dewu_publish",
+      "description": "按 posts.json 批量发布得物图文。",
+      "parameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["config"],
+        "properties": {
+          "config": {
+            "type": "string",
+            "minLength": 1
+          },
+          "serial": {
+            "type": "string",
+            "default": "emulator-5554"
+          },
+          "resume": {
+            "type": "boolean",
+            "default": false
+          },
+          "only": {
+            "type": "string",
+            "default": ""
+          },
+          "stop_on_error": {
+            "type": "boolean",
+            "default": false
+          }
+        }
+      }
+    }
+  }
+]

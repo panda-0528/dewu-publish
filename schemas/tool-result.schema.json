@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dewu-tool-result.schema.json",
+  "title": "DewuToolResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["ok", "command", "tool_version", "data", "error"],
+  "properties": {
+    "ok": {
+      "type": "boolean"
+    },
+    "command": {
+      "type": "string",
+      "enum": ["env-check", "scan", "import", "validate", "publish"]
+    },
+    "tool_version": {
+      "type": "string"
+    },
+    "data": {
+      "type": ["object", "null"]
+    },
+    "error": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["code", "message", "details"],
+      "properties": {
+        "code": {
+          "type": "string",
+          "enum": [
+            "E_ADB_NOT_FOUND",
+            "E_DEPENDENCY_MISSING",
+            "E_DEVICE_NOT_FOUND",
+            "E_DEVICE_OFFLINE",
+            "E_DEVICE_DISCONNECTED",
+            "E_RESOLUTION_MISMATCH",
+            "E_DEWU_NOT_INSTALLED",
+            "E_IME_SETUP_FAILED",
+            "E_SRC_NOT_FOUND",
+            "E_NO_ALBUM_FOUND",
+            "E_PUSH_FAILED",
+            "E_CONFIG_NOT_FOUND",
+            "E_CONFIG_INVALID",
+            "E_ALBUM_NOT_FOUND",
+            "E_UI_TIMEOUT",
+            "E_IMAGE_COUNT_UNSUPPORTED",
+            "E_PARTIAL_FAILURE",
+            "E_UNEXPECTED"
+          ]
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "object"
+        }
+      }
+    }
+  }
+}
