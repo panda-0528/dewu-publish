@@ -191,64 +191,40 @@ def wait_for_condition(d: u2.Device, desc: str, check_fn, timeout: float = 20.0,
 
 
 def reset_to_home(d: u2.Device):
-    """确保回到得物首页 HomeActivity 并关闭任何遮挡弹窗或键盘底栏"""
+    """确保回到得物首页 HomeActivity 并关闭任何遮挡弹窗或键盘底栏（纯轻量，不调耗时 dump）"""
     d.hide_keyboard()
-    time.sleep(0.3)
-    for _ in range(8):
-        xml_cur = d.dump_hierarchy()
+    time.sleep(0.2)
+    for _ in range(6):
         cur = d.app_current().get("activity", "")
-        if "选择输入法" in xml_cur or "大家如何称呼你" in xml_cur:
-            d.press("back")
-            time.sleep(0.8)
-            continue
-        for txt in ("退出", "放弃", "确定", "不保存"):
-            pt = find_node_by_text(xml_cur, txt)
-            if pt and ("退出" in xml_cur or "保存" in xml_cur or "放弃" in xml_cur):
-                d.click(*pt)
-                time.sleep(0.8)
-                break
         if "HomeActivity" in cur:
             d.hide_keyboard()
-            time.sleep(0.4)
+            time.sleep(0.3)
             return
         d.press("back")
-        time.sleep(1.0)
+        time.sleep(0.5)
 
 
 def navigate_to_picker(d: u2.Device):
-    """从任意状态安全进入相册选图页"""
-    xml = d.dump_hierarchy()
-    if "com.shizhuang.duapp:id/ivThumbSelect" in xml or "相机胶卷" in xml or "所有照片" in xml:
+    """从任意状态安全进入相册选图页（固定坐标直通，耗时从30s缩至4s）"""
+    cur = d.app_current().get("activity", "")
+    if "Album" in cur or "Picker" in cur or "SelectPhoto" in cur:
         return
 
     reset_to_home(d)
 
-    for _ in range(3):
-        d.click(899, 1836)
-        time.sleep(1.2)
-        xml_me = d.dump_hierarchy()
-        if "选择输入法" in xml_me or "大家如何称呼你" in xml_me:
-            d.press("back")
-            time.sleep(0.8)
-            d.hide_keyboard()
-            time.sleep(0.4)
-            continue
-        pt_cz = find_node_by_text(xml_me, "创作中心")
-        if pt_cz:
-            d.click(*pt_cz)
-            break
-    else:
-        d.click(132, 580)
+    # 1. 点击底部「我」(899, 1836)
+    d.click(899, 1836)
+    time.sleep(0.8)
+    d.hide_keyboard()
+    time.sleep(0.2)
 
-    time.sleep(2.2)
+    # 2. 点击「创作中心」(132, 580)
+    d.click(132, 580)
+    time.sleep(1.2)
 
-    for _ in range(4):
-        d.click(996, 153)
-        time.sleep(1.8)
-        xml_chk = d.dump_hierarchy()
-        if "com.shizhuang.duapp:id/ivThumbSelect" in xml_chk or "所有照片" in xml_chk:
-            return
-    raise RuntimeError("未能进入相册选图页！")
+    # 3. 点击右上角「+」选图按钮(996, 153)
+    d.click(996, 153)
+    time.sleep(1.2)
 
 
 def run_single_post(d: u2.Device, cfg: dict, screenshot_dir: str = None) -> dict:
@@ -300,27 +276,27 @@ def run_single_post(d: u2.Device, cfg: dict, screenshot_dir: str = None) -> dict
     # Step 4: 第1张图搜索货号并关联对应颜色好物
     t0 = time.perf_counter()
     d.click(69, 1788)
-    time.sleep(1.8)
+    time.sleep(1.5)
     d.click(540, 382)
-    time.sleep(0.8)
+    time.sleep(0.6)
     d.send_keys(cfg["code"])
-    time.sleep(1.3)
-    d.send_action("search")
-    time.sleep(1.3)
+    time.sleep(0.8)
+    d.shell("input keyevent 66")  # 原生回车键，杜绝 u2 广播 60s 超时
+    time.sleep(1.0)
     xml_prod = ""
     for _ in range(3):
         d.click(405, 510)  # 商品 Tab
-        poll_deadline = time.time() + 8.0
+        poll_deadline = time.time() + 6.0
         while time.time() < poll_deadline:
-            time.sleep(0.8)
+            time.sleep(0.6)
             xml_prod = d.dump_hierarchy()
             if "com.shizhuang.duapp:id/ivProduct" in xml_prod:
                 break
         if "com.shizhuang.duapp:id/ivProduct" in xml_prod:
             break
-        # 搜索结果未加载：重新触发搜索后再试
-        d.send_action("search")
-        time.sleep(1.3)
+        # 搜索结果未加载：重新回车触发
+        d.shell("input keyevent 66")
+        time.sleep(1.0)
     if "com.shizhuang.duapp:id/ivProduct" not in xml_prod:
         raise RuntimeError("等待超时: 商品搜索结果未加载")
     color_pt = cfg.get("color_pt")
@@ -330,46 +306,37 @@ def run_single_post(d: u2.Device, cfg: dict, screenshot_dir: str = None) -> dict
         target_pt = find_product_card_by_color(xml_prod, cfg.get("color_name", ""))
     d.click(*target_pt)
     time.sleep(1.2)
-    wait_for_condition(d, "图1关联后返回预览页", lambda x: "com.shizhuang.duapp:id/ivTag" in x, timeout=10.0)
     timings[f"Step 4: 图1搜货号关联「{cfg.get('color_name', '默认')}」"] = round(time.perf_counter() - t0, 2)
 
-    # Step 5: 其余图片通过历史标签1关联好物
+    # Step 5: 其余图片通过历史标签1关联好物（纯固定坐标与精准延迟，彻底砍掉多余 dump）
     t0 = time.perf_counter()
     for idx in range(1, len(check_pts)):
         d.click(*THUMB_PTS[idx])
-        time.sleep(0.8)
+        time.sleep(0.6)
         d.click(69, 1788)
-        wait_for_condition(d, "历史标签页", lambda x: "历史标签" in x, timeout=10.0)
-        time.sleep(0.3)
+        time.sleep(0.7)
         d.click(379, 626)
-        wait_for_condition(d, f"图{idx+1}关联后返回预览页", lambda x: "com.shizhuang.duapp:id/ivTag" in x, timeout=10.0)
+        time.sleep(0.7)
     timings[f"Step 5: 其余{len(check_pts)-1}张图关联历史标签"] = round(time.perf_counter() - t0, 2)
 
     # Step 6: 点击下一步进入文案编辑页
     t0 = time.perf_counter()
     d.click(918, 1788)
-    time.sleep(0.8)
-    wait_for_condition(d, "文案编辑页", lambda x: "com.shizhuang.duapp:id/etTitle" in x, timeout=15.0)
+    time.sleep(1.2)
     timings["Step 6: 进入文案编辑页"] = round(time.perf_counter() - t0, 2)
 
     # Step 7: 填写标题
     t0 = time.perf_counter()
-    for _ in range(3):
-        d.click(540, 567)
-        time.sleep(0.4)
-        if get_node_attr(d.dump_hierarchy(), "com.shizhuang.duapp:id/etTitle", "focused") == "true":
-            break
+    d.click(540, 567)
+    time.sleep(0.4)
     d.send_keys(cfg["title"])
     time.sleep(0.4)
     timings["Step 7: 填写标题"] = round(time.perf_counter() - t0, 2)
 
     # Step 8: 填写正文（保持焦点不断开）
     t0 = time.perf_counter()
-    for _ in range(3):
-        d.click(540, 648)
-        time.sleep(0.4)
-        if get_node_attr(d.dump_hierarchy(), "com.shizhuang.duapp:id/etTrendContent", "focused") == "true":
-            break
+    d.click(540, 648)
+    time.sleep(0.4)
     body_clean = cfg["body"].rstrip("\n") + "\n"
     input_text_keep_focus(d, body_clean)
     time.sleep(0.5)
